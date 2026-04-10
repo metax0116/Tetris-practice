@@ -28,6 +28,7 @@ export const useTetrisGame = () => {
   const [canHold, setCanHold] = useState(true);
 
   const resetPlayer = useCallback(() => {
+    if (gameOver) return;
     const newTetrimino = nextPiece;
     setNextPiece(randomTetrimino());
     setPlayer({
@@ -38,7 +39,7 @@ export const useTetrisGame = () => {
     setCanHold(true);
     // Reset drop speed to current level's normal speed
     setDropTime(1000 / (level + 1) + 200);
-  }, [nextPiece, level]);
+  }, [nextPiece, level, gameOver]);
 
   const startGame = () => {
     setStage(createStage());
@@ -145,6 +146,7 @@ export const useTetrisGame = () => {
   };
 
   const drop = () => {
+    if (gameOver) return;
     if (!checkCollision(player, stage, { x: 0, y: 1 })) {
       updatePlayerPos({ x: 0, y: 1, collided: false });
     } else {
@@ -153,6 +155,7 @@ export const useTetrisGame = () => {
   };
 
   const dropPlayer = () => {
+    if (gameOver) return;
     // Balanced soft drop speed
     setDropTime(60);
   };
@@ -193,6 +196,7 @@ export const useTetrisGame = () => {
   };
 
   const movePlayer = (dir: number) => {
+    if (gameOver) return;
     if (!checkCollision(player, stage, { x: dir, y: 0 })) {
       updatePlayerPos({ x: dir, y: 0, collided: false });
     }
@@ -203,7 +207,7 @@ export const useTetrisGame = () => {
   }, dropTime);
 
   useEffect(() => {
-    if (player.collided) {
+    if (player.collided && !gameOver) {
       const newStage = stage.map((row) =>
         row.map((cell) => (cell[1] === 'clear' ? [0, 'clear'] : cell))
       );
@@ -227,12 +231,13 @@ export const useTetrisGame = () => {
       if (checkCollision({ pos: nextSpawnPos, tetrimino: nextPiece }, sweptStage, { x: 0, y: 0 })) {
         setGameOver(true);
         setDropTime(null);
+        setStage(sweptStage);
+      } else {
+        setStage(sweptStage);
+        resetPlayer();
       }
-      
-      setStage(sweptStage);
-      resetPlayer();
     }
-  }, [player.collided, resetPlayer, stage, nextPiece]);
+  }, [player.collided, resetPlayer, stage, nextPiece, gameOver]);
 
   // Ghost Position
   const getGhostPos = () => {
