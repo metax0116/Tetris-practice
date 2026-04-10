@@ -6,6 +6,10 @@ export interface Tetrimino {
 }
 
 export const TETRIMINOS: { [key: string]: Tetrimino } = {
+  '0': {
+    shape: [[0]],
+    color: '#000000',
+  },
   I: {
     shape: [
       [0, 'I', 0, 0],
@@ -65,7 +69,7 @@ export const TETRIMINOS: { [key: string]: Tetrimino } = {
 };
 
 export const randomTetrimino = () => {
-  const keys = Object.keys(TETRIMINOS);
+  const keys = Object.keys(TETRIMINOS).filter((key) => key !== '0');
   const key = keys[Math.floor(Math.random() * keys.length)];
   return TETRIMINOS[key];
 };

@@ -11,6 +11,9 @@ const App: React.FC = () => {
     rows,
     level,
     gameOver,
+    gameStarted,
+    holdPiece,
+    hold,
     startGame,
     movePlayer,
     dropPlayer,
@@ -26,6 +29,10 @@ const App: React.FC = () => {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (gameOver) return;
 
+    if (['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' ', 'p', 'P', 'c', 'C', 'Shift'].includes(e.key)) {
+      e.preventDefault();
+    }
+
     if (e.key === 'ArrowLeft') {
       movePlayer(-1);
     } else if (e.key === 'ArrowRight') {
@@ -36,6 +43,8 @@ const App: React.FC = () => {
       playerRotate(stage, 1);
     } else if (e.key === ' ') {
       hardDrop();
+    } else if (e.key === 'c' || e.key === 'C' || e.key === 'Shift') {
+      hold();
     } else if (e.key === 'p' || e.key === 'P') {
       if (dropTime) {
         setDropTime(null);
@@ -116,6 +125,44 @@ const App: React.FC = () => {
         </div>
 
         <div className="info-panel">
+          <div className="next-piece-box">
+            <div className="stat-label">Hold</div>
+            <div 
+              className="next-piece-grid"
+              style={{
+                gridTemplateRows: `repeat(${holdPiece ? holdPiece.shape.length : 4}, 20px)`,
+                gridTemplateColumns: `repeat(${holdPiece ? holdPiece.shape[0].length : 4}, 20px)`,
+                minHeight: '80px',
+                minWidth: '80px',
+                display: 'grid',
+                justifyContent: 'center',
+                alignContent: 'center'
+              }}
+            >
+              {holdPiece ? (
+                holdPiece.shape.map((row, y) =>
+                  row.map((value, x) => (
+                    <div key={`hold-${y}-${x}`} className="next-cell">
+                      {value !== 0 && (
+                        <div
+                          className="cell-inner cell-filled"
+                          style={{
+                            backgroundColor: holdPiece.color,
+                            boxShadow: `0 0 5px ${holdPiece.color}`,
+                            width: '100%',
+                            height: '100%',
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))
+                )
+              ) : (
+                <div style={{ gridColumn: 'span 4', color: '#444', fontSize: '0.6rem', textAlign: 'center' }}>[ EMPTY ]</div>
+              )}
+            </div>
+          </div>
+
           <div className="stat-box">
             <div className="stat-label">Score</div>
             <div className="stat-value">{score}</div>
@@ -131,7 +178,13 @@ const App: React.FC = () => {
 
           <div className="next-piece-box">
             <div className="stat-label">Next</div>
-            <div className="next-piece-grid">
+            <div 
+              className="next-piece-grid"
+              style={{
+                gridTemplateRows: `repeat(${nextPiece.shape.length}, 20px)`,
+                gridTemplateColumns: `repeat(${nextPiece.shape[0].length}, 20px)`
+              }}
+            >
               {nextPiece.shape.map((row, y) =>
                 row.map((value, x) => (
                   <div key={`next-${y}-${x}`} className="next-cell">
@@ -160,6 +213,7 @@ const App: React.FC = () => {
             ARROWS: Move & Rotate<br />
             SPACE: Hard Drop<br />
             DOWN: Soft Drop<br />
+            C / SHIFT: Hold<br />
             P: Pause
           </div>
         </div>
@@ -174,7 +228,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {!gameOver && score === 0 && !dropTime && (
+        {!gameStarted && (
           <div className="game-over-overlay" style={{ background: 'rgba(0,0,0,0.7)' }}>
             <button className="start-button" onClick={startGame}>
               Start Game

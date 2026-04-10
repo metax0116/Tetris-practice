@@ -14,7 +14,7 @@ export const useTetrisGame = () => {
   const [stage, setStage] = useState(createStage());
   const [player, setPlayer] = useState({
     pos: { x: 0, y: 0 },
-    tetrimino: TETRIMINOS[0], // dummy
+    tetrimino: TETRIMINOS['0'], // dummy
     collided: false,
   });
   const [nextPiece, setNextPiece] = useState(randomTetrimino());
@@ -22,7 +22,10 @@ export const useTetrisGame = () => {
   const [rows, setRows] = useState(0);
   const [level, setLevel] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const [dropTime, setDropTime] = useState<number | null>(null);
+  const [holdPiece, setHoldPiece] = useState<Tetrimino | null>(null);
+  const [canHold, setCanHold] = useState(true);
 
   const resetPlayer = useCallback(() => {
     const newTetrimino = nextPiece;
@@ -32,16 +35,30 @@ export const useTetrisGame = () => {
       tetrimino: newTetrimino,
       collided: false,
     });
-  }, [nextPiece]);
+    setCanHold(true);
+    // Reset drop speed to current level's normal speed
+    setDropTime(1000 / (level + 1) + 200);
+  }, [nextPiece, level]);
 
   const startGame = () => {
     setStage(createStage());
-    setDropTime(1000);
-    resetPlayer();
     setScore(0);
     setLevel(0);
     setRows(0);
     setGameOver(false);
+    setGameStarted(true);
+    setHoldPiece(null);
+    setCanHold(true);
+    
+    // Initial piece setup
+    const firstPiece = randomTetrimino();
+    setNextPiece(randomTetrimino());
+    setPlayer({
+      pos: { x: STAGE_WIDTH / 2 - 2, y: 0 },
+      tetrimino: firstPiece,
+      collided: false,
+    });
+    setDropTime(1200); // Normal starting speed
   };
 
   const checkCollision = (
@@ -52,10 +69,15 @@ export const useTetrisGame = () => {
     for (let y = 0; y < player.tetrimino.shape.length; y += 1) {
       for (let x = 0; x < player.tetrimino.shape[y].length; x += 1) {
         if (player.tetrimino.shape[y][x] !== 0) {
+          const nextY = y + player.pos.y + moveY;
+          const nextX = x + player.pos.x + moveX;
+
           if (
-            !stage[y + player.pos.y + moveY] ||
-            !stage[y + player.pos.y + moveY][x + player.pos.x + moveX] ||
-            stage[y + player.pos.y + moveY][x + player.pos.x + moveX][1] !== 'clear'
+            nextY < 0 ||
+            nextY >= STAGE_HEIGHT ||
+            nextX < 0 ||
+            nextX >= STAGE_WIDTH ||
+            (stage[nextY] && stage[nextY][nextX] && stage[nextY][nextX][1] === 'merged')
           ) {
             return true;
           }
@@ -68,7 +90,7 @@ export const useTetrisGame = () => {
   const updatePlayerPos = ({ x, y, collided }: { x: number; y: number; collided: boolean }) => {
     setPlayer((prev) => ({
       ...prev,
-      pos: { x: (prev.pos.x += x), y: (prev.pos.y += y) },
+      pos: { x: prev.pos.x + x, y: prev.pos.y + y },
       collided,
     }));
   };
@@ -90,9 +112,7 @@ export const useTetrisGame = () => {
     while (checkCollision(clonedPlayer, stage, { x: 0, y: 0 })) {
       clonedPlayer.pos.x += offset;
       offset = -(offset + (offset > 0 ? 1 : -1));
-      if (offset > clonedPlayer.tetrimino.shape[0].length) {
-        rotate(clonedPlayer.tetrimino.shape, -dir);
-        clonedPlayer.pos.x = pos;
+      if (Math.abs(offset) > clonedPlayer.tetrimino.shape[0].length) {
         return;
       }
     }
@@ -113,36 +133,52 @@ export const useTetrisGame = () => {
 
     if (rowsCleared > 0) {
       setScore((prev) => prev + [40, 100, 300, 1200][rowsCleared - 1] * (level + 1));
-      setRows((prev) => prev + rowsCleared);
-      if (rows >= (level + 1) * 10) {
-        setLevel((prev) => prev + 1);
-        setDropTime(1000 / (level + 1) + 200);
-      }
+      setRows((prev) => {
+        const nextRows = prev + rowsCleared;
+        if (nextRows >= (level + 1) * 10) {
+          setLevel((l) => l + 1);
+        }
+        return nextRows;
+      });
     }
     return sweptStage;
   };
 
   const drop = () => {
-    if (rows > (level + 1) * 10) {
-      setLevel((prev) => prev + 1);
-      setDropTime(1000 / (level + 1) + 200);
-    }
-
     if (!checkCollision(player, stage, { x: 0, y: 1 })) {
       updatePlayerPos({ x: 0, y: 1, collided: false });
     } else {
-      if (player.pos.y < 1) {
-        setGameOver(true);
-        setDropTime(null);
-      }
       updatePlayerPos({ x: 0, y: 0, collided: true });
     }
   };
 
   const dropPlayer = () => {
-    setDropTime(null);
-    drop();
+    // Balanced soft drop speed
+    setDropTime(60);
   };
+
+  const hold = useCallback(() => {
+    if (!canHold || gameOver) return;
+
+    const currentPiece = player.tetrimino;
+
+    if (!holdPiece) {
+      // First time holding
+      setHoldPiece(currentPiece);
+      resetPlayer();
+    } else {
+      // Swapping with held piece
+      const temp = holdPiece;
+      setHoldPiece(currentPiece);
+      setPlayer({
+        pos: { x: STAGE_WIDTH / 2 - 2, y: 0 },
+        tetrimino: temp,
+        collided: false,
+      });
+    }
+
+    setCanHold(false);
+  }, [canHold, gameOver, holdPiece, player.tetrimino, resetPlayer]);
 
   const hardDrop = () => {
     let potY = 0;
@@ -182,14 +218,28 @@ export const useTetrisGame = () => {
           }
         });
       });
-      setStage(sweepRows(newStage));
+      
+      const sweptStage = sweepRows(newStage);
+      
+      // Check for Game Over immediately after piece is merged
+      // If the next piece would collide at the start position
+      const nextSpawnPos = { x: STAGE_WIDTH / 2 - 2, y: 0 };
+      if (checkCollision({ pos: nextSpawnPos, tetrimino: nextPiece }, sweptStage, { x: 0, y: 0 })) {
+        setGameOver(true);
+        setDropTime(null);
+      }
+      
+      setStage(sweptStage);
       resetPlayer();
     }
-  }, [player.collided, resetPlayer, stage]);
+  }, [player.collided, resetPlayer, stage, nextPiece]);
 
   // Ghost Position
   const getGhostPos = () => {
     let ghostY = 0;
+    if (player.tetrimino.shape.length === 1 && player.tetrimino.shape[0][0] === 0) {
+      return { x: player.pos.x, y: player.pos.y };
+    }
     while (!checkCollision(player, stage, { x: 0, y: ghostY + 1 })) {
       ghostY += 1;
     }
@@ -206,6 +256,9 @@ export const useTetrisGame = () => {
     rows,
     level,
     gameOver,
+    gameStarted,
+    holdPiece,
+    hold,
     startGame,
     movePlayer,
     dropPlayer,
