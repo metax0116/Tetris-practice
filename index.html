@@ -4,9 +4,159 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tetris Practice</title>
+    <style>
+      #docs-btn {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 10px 20px;
+        background-color: #00f0f0;
+        color: #000;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: sans-serif;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(0, 240, 240, 0.5);
+        transition: transform 0.2s;
+      }
+      #docs-btn:hover {
+        transform: scale(1.05);
+        background-color: #fff;
+      }
+      #docs-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.85);
+        z-index: 2000;
+        overflow-y: auto;
+      }
+      #docs-content {
+        background-color: #1a1a1a;
+        color: #eee;
+        margin: 5% auto;
+        padding: 30px;
+        width: 80%;
+        max-width: 900px;
+        border-radius: 10px;
+        border: 1px solid #333;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+      }
+      #docs-close {
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        color: #888;
+      }
+      #docs-close:hover {
+        color: #fff;
+      }
+      .mermaid {
+        background-color: white;
+        padding: 20px;
+        border-radius: 5px;
+        margin: 20px 0;
+      }
+      h1, h2 {
+        color: #00f0f0;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    
+    <button id="docs-btn">Architecture Docs</button>
+
+    <div id="docs-modal">
+      <div id="docs-content">
+        <span id="docs-close">&times;</span>
+        <h1>Tetris Architecture Documentation</h1>
+        <p>This Tetris application is built with React and TypeScript, focusing on a hook-based state management pattern.</p>
+        
+        <h2>Core Components</h2>
+        <ul>
+          <li><strong>App.tsx</strong>: Main component. Handles keyboard events and renders the UI.</li>
+          <li><strong>useTetrisGame.ts</strong>: The "Brain" of the game. Manages all state (stage, player, score) and logic (movement, rotation, collision).</li>
+          <li><strong>useInterval.ts</strong>: Custom hook for the game loop (gravity/drop timing).</li>
+          <li><strong>tetriminoes.ts</strong>: Utility defining shapes, colors, and piece generation.</li>
+        </ul>
+
+        <h2>Architecture Diagram</h2>
+        <div class="mermaid">
+graph TD
+    subgraph "View Layer (React)"
+        App[App.tsx]
+    end
+
+    subgraph "Logic Layer (Hooks)"
+        useTG[useTetrisGame.ts]
+        useInt[useInterval.ts]
+    end
+
+    subgraph "Data & Utils"
+        tetri[tetriminoes.ts]
+    end
+
+    App --> useTG
+    useTG --> useInt
+    useTG --> tetri
+    
+    useTG -- "State (stage, player, score)" --> App
+    App -- "Actions (move, rotate, drop)" --> useTG
+    
+    subgraph "useTetrisGame Functions"
+        check[checkCollision]
+        rotate[playerRotate]
+        sweep[sweepRows]
+        dropLogic[drop]
+    end
+    
+    useTG --> check
+    useTG --> rotate
+    useTG --> sweep
+    useTG --> dropLogic
+        </div>
+
+        <h2>Data Flow</h2>
+        <ol>
+          <li><strong>Input</strong>: User presses a key. <code>App.tsx</code> catches it and calls a method from <code>useTetrisGame</code>.</li>
+          <li><strong>Update</strong>: <code>useTetrisGame</code> updates the player position or stage state after checking for collisions.</li>
+          <li><strong>Tick</strong>: <code>useInterval</code> triggers <code>drop()</code> every X milliseconds, moving the piece down automatically.</li>
+          <li><strong>Render</strong>: <code>App.tsx</code> re-renders the stage, merging the static grid with the active player piece.</li>
+        </ol>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      // Initialize Mermaid
+      mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+      const modal = document.getElementById("docs-modal");
+      const btn = document.getElementById("docs-btn");
+      const span = document.getElementById("docs-close");
+
+      btn.onclick = function() {
+        modal.style.display = "block";
+      }
+
+      span.onclick = function() {
+        modal.style.display = "none";
+      }
+
+      window.onclick = function(event) {
+        if (event.target == modal) {
+          modal.style.display = "none";
+        }
+      }
+    </script>
   </body>
 </html>
